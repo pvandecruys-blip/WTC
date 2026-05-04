@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { supabase } = require('./db');
+const { supabase, withTimeout, sanitizedUrl } = require('./db');
 const storage = require('./storage');
 
 const app = express();
@@ -19,7 +19,34 @@ const upload = multer({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const fail = (res, error) => res.status(500).json({ error: error.message || String(error) });
+const fail = (res, error) => {
+  console.error('[API ERROR]', error);
+  res.status(500).json({ error: error.message || String(error) });
+};
+
+// ============================================================
+// HEALTH CHECK — direct testbaar via /api/health
+// ============================================================
+app.get('/api/health', async (req, res) => {
+  const result = {
+    env: {
+      SUPABASE_URL: sanitizedUrl ? `${sanitizedUrl.slice(0, 35)}...` : 'MISSING',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+        ? `set (length ${process.env.SUPABASE_SERVICE_ROLE_KEY.length})`
+        : 'MISSING'
+    },
+    region: process.env.VERCEL_REGION || 'lokaal'
+  };
+  try {
+    const t0 = Date.now();
+    const r = await withTimeout(supabase.from('members').select('id', { count: 'exact', head: true }), 6000, 'health');
+    result.supabase = { ok: true, count: r.count, ms: Date.now() - t0, error: r.error?.message };
+    res.json(result);
+  } catch (err) {
+    result.supabase = { ok: false, error: err.message };
+    res.status(500).json(result);
+  }
+});
 
 // ============================================================
 // RIDES

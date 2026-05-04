@@ -1,4 +1,4 @@
-const { supabase } = require('./db');
+const { getSupabase } = require('./db');
 
 const BUCKET = process.env.SUPABASE_BUCKET || 'wtc-photos';
 
@@ -7,7 +7,7 @@ async function saveImage(file) {
   const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
   const filename = `${Date.now()}-${safeBase}`;
 
-  const { error } = await supabase.storage
+  const { error } = await getSupabase().storage
     .from(BUCKET)
     .upload(filename, file.buffer, {
       contentType: file.mimetype,
@@ -16,7 +16,7 @@ async function saveImage(file) {
     });
   if (error) throw new Error('Upload mislukt: ' + error.message);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+  const { data } = getSupabase().storage.from(BUCKET).getPublicUrl(filename);
   return data.publicUrl;
 }
 
@@ -27,7 +27,7 @@ async function deleteImage(url) {
   const idx = url.indexOf(marker);
   if (idx === -1) return;
   const filename = url.substring(idx + marker.length);
-  await supabase.storage.from(BUCKET).remove([filename]);
+  await getSupabase().storage.from(BUCKET).remove([filename]);
 }
 
 module.exports = { saveImage, deleteImage };

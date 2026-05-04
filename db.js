@@ -1,28 +1,39 @@
 const { createClient } = require('@supabase/supabase-js');
 
-let url = process.env.SUPABASE_URL || '';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+let _supabase = null;
+let _sanitizedUrl = null;
 
-// Sanitize: strip trailing slashes en /rest/v1 paden — supabase-js verwacht
-// alleen de base URL.
-url = url.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+function getSupabase() {
+  if (_supabase) return _supabase;
 
-if (!url || !serviceKey) {
-  throw new Error(
-    'Supabase niet geconfigureerd: zet SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY in .env (lokaal) of in de Vercel environment variables.'
-  );
+  let url = (process.env.SUPABASE_URL || '').trim();
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+
+  // Strip trailing slashes en /rest/v1 paden
+  url = url.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  _sanitizedUrl = url;
+
+  if (!url || !serviceKey) {
+    const err = new Error('Supabase niet geconfigureerd: SUPABASE_URL en/of SUPABASE_SERVICE_ROLE_KEY ontbreken in env.');
+    err.code = 'NO_SUPABASE_CONFIG';
+    throw err;
+  }
+
+  _supabase = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init = {}) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(7000) })
+    }
+  });
+  return _supabase;
 }
 
-const supabase = createClient(url, serviceKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-  global: {
-    fetch: (input, init = {}) =>
-      fetch(input, { ...init, signal: AbortSignal.timeout(7000) })
-  }
-});
+function getSanitizedUrl() {
+  if (_sanitizedUrl !== null) return _sanitizedUrl;
+  return (process.env.SUPABASE_URL || '').trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+}
 
-// Helper: wrap promise met een hard 9s timeout zodat een hangende Supabase-call
-// nooit de Vercel function 300s laat hangen.
 function withTimeout(promise, ms = 9000, label = 'supabase') {
   return Promise.race([
     promise,
@@ -32,4 +43,4 @@ function withTimeout(promise, ms = 9000, label = 'supabase') {
   ]);
 }
 
-module.exports = { supabase, withTimeout, sanitizedUrl: url };
+module.exports = { getSupabase, getSanitizedUrl, withTimeout };

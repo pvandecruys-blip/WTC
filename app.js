@@ -212,17 +212,8 @@ app.post('/api/members', upload.single('photo'), async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-app.delete('/api/members/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const { data: row } = await getSupabase().from('members').select('photo').eq('id', id).single();
-    if (!row) return res.status(404).json({ error: 'Niet gevonden' });
-    const { error } = await getSupabase().from('members').delete().eq('id', id);
-    if (error) throw error;
-    await storage.deleteImage(row.photo);
-    res.json({ ok: true });
-  } catch (err) { fail(res, err); }
-});
+// DELETE /api/members/:id is bewust uitgeschakeld — leden mogen alleen via
+// de Supabase dashboard verwijderd worden om accidentele schade te vermijden.
 
 // ============================================================
 // EVENTS

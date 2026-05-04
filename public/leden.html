@@ -141,7 +141,6 @@ async function loadMembers() {
           ${m.role ? `<p class="member-role">${esc(m.role)}</p>` : ''}
           ${m.bio ? `<p>${esc(m.bio)}</p>` : ''}
           ${m.category ? `<p class="muted" style="font-size:.85rem">Categorie ${esc(m.category)}</p>` : ''}
-          <div style="margin-top:0.8rem"><button class="delete-ride" data-id="${m.id}">Verwijderen</button></div>
         </div>
       `;
     };
@@ -154,14 +153,6 @@ async function loadMembers() {
       html += `<div class="members-grid">${cats[c].map(card).join('')}</div>`;
     }
     root.innerHTML = html;
-    root.querySelectorAll('button[data-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Lid verwijderen?')) return;
-        const r = await fetch(`/api/members/${btn.dataset.id}`, { method: 'DELETE' });
-        if (!r.ok) return alert('Verwijderen mislukt');
-        loadMembers();
-      });
-    });
   } catch (e) {
     root.innerHTML = `<p class="empty-state">Kon leden niet laden.</p>`;
   }

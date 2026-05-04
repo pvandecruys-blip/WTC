@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalender — WTC Platte Band</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">WTC</span>
+      <span class="logo-text">Platte Band</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="kalender.html" class="active">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html">Sponsors</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Menu">&#9776;</button>
+  </div>
+</header>
+
+<section class="page-header">
+  <div class="container">
+    <p class="kicker">Geplande ritten</p>
+    <h1>Kalender</h1>
+    <p class="lead">Onze geplande ritten en evenementen.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+
+    <div class="form-card" style="margin-bottom:2rem">
+      <h2>Evenement / rit toevoegen</h2>
+      <form id="eventForm" class="ride-form">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Datum</label>
+            <input type="date" name="date" required>
+          </div>
+          <div class="form-field">
+            <label>Tijd</label>
+            <input type="text" name="time" placeholder="09:00">
+          </div>
+          <div class="form-field">
+            <label>Type</label>
+            <select name="is_special">
+              <option value="false">Gewone rit</option>
+              <option value="true">Speciaal evenement</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Titel</label>
+          <input type="text" name="title" required placeholder="bv. Vlaamse Ardennen klassieker">
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Locatie</label>
+            <input type="text" name="location">
+          </div>
+          <div class="form-field">
+            <label>Afstand</label>
+            <input type="text" name="distance" placeholder="± 85 km">
+          </div>
+          <div class="form-field">
+            <label>Tempo</label>
+            <input type="text" name="pace" placeholder="28-30 km/u">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Beschrijving</label>
+          <textarea name="description" rows="2"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Evenement toevoegen</button>
+        </div>
+        <p id="eventStatus" class="form-status"></p>
+      </form>
+    </div>
+
+    <div id="eventsRoot">
+      <p class="empty-state">Kalender wordt geladen…</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="logo logo-footer">
+        <span class="logo-mark">WTC</span>
+        <span class="logo-text">Platte Band</span>
+      </div>
+      <p>De gezelligste wielertoeristenclub van de streek.</p>
+    </div>
+    <div>
+      <h4>Navigatie</h4>
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="kalender.html">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html">Sponsors</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <p>info@wtcplatteband.be</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      <p>&copy; 2026 WTC Platte Band — alle rechten en bidons voorbehouden.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+<script>
+const monthsNL = ['JAN','FEB','MRT','APR','MEI','JUN','JUL','AUG','SEP','OKT','NOV','DEC'];
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const root = document.getElementById('eventsRoot');
+
+async function loadEvents() {
+  try {
+    const res = await fetch('/api/events');
+    const events = await res.json();
+    if (!events.length) {
+      root.innerHTML = `<p class="empty-state">Nog geen evenementen. Voeg er eentje toe via het formulier hierboven.</p>`;
+      return;
+    }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = events.filter(e => new Date(e.date) >= today);
+    const past = events.filter(e => new Date(e.date) < today).reverse();
+
+    const item = (e, isFirst = false) => {
+      const d = new Date(e.date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = monthsNL[d.getMonth()];
+      const cls = ['calendar-item'];
+      if (isFirst && new Date(e.date) >= today) cls.push('upcoming');
+      if (e.is_special) cls.push('event');
+      return `
+        <article class="${cls.join(' ')}">
+          <div class="cal-date">
+            <div class="cal-day">${day}</div>
+            <div class="cal-month">${month}</div>
+          </div>
+          <div class="cal-content">
+            <h3>${e.is_special ? '🏆 ' : ''}${esc(e.title)}</h3>
+            <div class="cal-meta">
+              ${e.location ? `<span>📍 ${esc(e.location)}</span>` : ''}
+              ${e.time ? `<span>🕘 ${esc(e.time)}</span>` : ''}
+              ${e.distance ? `<span>📏 ${esc(e.distance)}</span>` : ''}
+              ${e.pace ? `<span>⚡ ${esc(e.pace)}</span>` : ''}
+            </div>
+            ${e.description ? `<p>${esc(e.description)}</p>` : ''}
+            <button class="delete-ride" data-id="${e.id}" style="margin-top:0.5rem">Verwijderen</button>
+          </div>
+        </article>
+      `;
+    };
+
+    let html = '';
+    if (upcoming.length) html += `<h2>Aankomende ritten</h2><div class="calendar-list">${upcoming.map((e, i) => item(e, i === 0)).join('')}</div>`;
+    if (past.length) html += `<h2 class="mt-large">Voorbij</h2><div class="calendar-list">${past.map(e => item(e)).join('')}</div>`;
+    root.innerHTML = html;
+    root.querySelectorAll('button[data-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Evenement verwijderen?')) return;
+        const r = await fetch(`/api/events/${btn.dataset.id}`, { method: 'DELETE' });
+        if (!r.ok) return alert('Verwijderen mislukt');
+        loadEvents();
+      });
+    });
+  } catch (e) {
+    root.innerHTML = `<p class="empty-state">Kon kalender niet laden.</p>`;
+  }
+}
+
+document.getElementById('eventForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('eventStatus');
+  status.textContent = 'Opslaan...';
+  try {
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.is_special = data.is_special === 'true';
+    const res = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error((await res.json()).error || res.status);
+    e.target.reset();
+    status.textContent = '✓ Evenement toegevoegd';
+    setTimeout(() => status.textContent = '', 1500);
+    loadEvents();
+  } catch (err) {
+    status.textContent = '✗ ' + err.message;
+  }
+});
+
+loadEvents();
+</script>
+</body>
+</html>

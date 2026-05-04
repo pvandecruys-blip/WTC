@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — WTC Platte Band</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">WTC</span>
+      <span class="logo-text">Platte Band</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="kalender.html">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html">Sponsors</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Menu">&#9776;</button>
+  </div>
+</header>
+
+<section class="page-header">
+  <div class="container">
+    <p class="kicker">Analyse</p>
+    <h1>Dashboard</h1>
+    <p class="lead">Wie rijdt het meest, het snelst, en — eerlijk is eerlijk — wie zorgt voor de zwaarste toogrekening? Alle inzichten op basis van geregistreerde ritten.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container" id="dashboard">
+    <p class="empty-state">Dashboard wordt geladen...</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="logo logo-footer">
+        <span class="logo-mark">WTC</span>
+        <span class="logo-text">Platte Band</span>
+      </div>
+      <p>De gezelligste wielertoeristenclub van de streek.</p>
+    </div>
+    <div>
+      <h4>Navigatie</h4>
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="kalender.html">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html">Sponsors</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <p>Café De Velo<br>Dorpsplein 12<br>9000 Gent</p>
+      <p>info@wtcplatteband.be</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      <p>&copy; 2026 WTC Platte Band — alle rechten en bidons voorbehouden.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

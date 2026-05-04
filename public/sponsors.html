@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsors — WTC Platte Band</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav-wrap">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">WTC</span>
+      <span class="logo-text">Platte Band</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="kalender.html">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html" class="active">Sponsors</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Menu">&#9776;</button>
+  </div>
+</header>
+
+<section class="page-header">
+  <div class="container">
+    <p class="kicker">Onze partners</p>
+    <h1>Sponsors</h1>
+    <p class="lead">Zonder hen geen truitjes, geen bidons, geen pintjes na de rit. Een dikke merci aan de bedrijven die WTC Platte Band ondersteunen.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+
+    <div class="form-card" style="margin-bottom:2rem">
+      <h2>Sponsor toevoegen</h2>
+      <form id="sponsorForm" class="ride-form" enctype="multipart/form-data">
+        <div class="form-row">
+          <div class="form-field">
+            <label>Naam</label>
+            <input type="text" name="name" required>
+          </div>
+          <div class="form-field">
+            <label>Niveau</label>
+            <select name="tier">
+              <option value="gold">Goud (hoofdsponsor)</option>
+              <option value="silver" selected>Zilver (steunsponsor)</option>
+              <option value="bronze">Brons (vriend)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Beschrijving</label>
+          <textarea name="description" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Website</label>
+            <input type="url" name="url" placeholder="https://...">
+          </div>
+          <div class="form-field">
+            <label>Logo</label>
+            <input type="file" name="logo" accept="image/*">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Sponsor toevoegen</button>
+        </div>
+        <p id="sponsorStatus" class="form-status"></p>
+      </form>
+    </div>
+
+    <div id="sponsorsRoot">
+      <p class="empty-state">Sponsors worden geladen…</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="logo logo-footer">
+        <span class="logo-mark">WTC</span>
+        <span class="logo-text">Platte Band</span>
+      </div>
+      <p>De gezelligste wielertoeristenclub van de streek.</p>
+    </div>
+    <div>
+      <h4>Navigatie</h4>
+      <a href="index.html">Home</a>
+      <a href="ritten.html">Ritten</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="kalender.html">Kalender</a>
+      <a href="leden.html">Leden</a>
+      <a href="sponsors.html">Sponsors</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <p>info@wtcplatteband.be</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">
+      <p>&copy; 2026 WTC Platte Band — alle rechten en bidons voorbehouden.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+<script>
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const root = document.getElementById('sponsorsRoot');
+
+async function loadSponsors() {
+  try {
+    const res = await fetch('/api/sponsors');
+    const sponsors = await res.json();
+    if (!sponsors.length) {
+      root.innerHTML = `<p class="empty-state">Nog geen sponsors. Voeg er eentje toe via het formulier hierboven.</p>`;
+      return;
+    }
+    const tiers = { gold: [], silver: [], bronze: [] };
+    sponsors.forEach(s => (tiers[(s.tier || 'silver').toLowerCase()] || tiers.silver).push(s));
+    const labels = { gold: 'Hoofdsponsors', silver: 'Steunsponsors', bronze: 'Vrienden van de club' };
+    let html = '';
+    for (const tier of ['gold', 'silver', 'bronze']) {
+      if (!tiers[tier].length) continue;
+      html += `<h2${tier !== 'gold' ? ' class="mt-large"' : ''}>${labels[tier]}</h2>`;
+      html += `<div class="sponsors-grid${tier === 'gold' ? ' main-sponsors' : ''}">`;
+      for (const s of tiers[tier]) {
+        const initials = s.name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+        html += `
+          <div class="sponsor-card ${tier}">
+            ${s.logo
+              ? `<img src="${esc(s.logo)}" alt="${esc(s.name)}" style="max-width:120px;max-height:100px;margin:0 auto 1rem;display:block;object-fit:contain;">`
+              : `<div class="sponsor-logo">${esc(initials)}</div>`}
+            <h3>${esc(s.name)}</h3>
+            ${s.description ? `<p>${esc(s.description)}</p>` : ''}
+            ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="sponsor-link">${esc(s.url.replace(/^https?:\/\//, ''))}</a>` : ''}
+            <div style="margin-top:1rem"><button class="delete-ride" data-id="${s.id}">Verwijderen</button></div>
+          </div>
+        `;
+      }
+      html += `</div>`;
+    }
+    root.innerHTML = html;
+    root.querySelectorAll('button[data-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Sponsor verwijderen?')) return;
+        const r = await fetch(`/api/sponsors/${btn.dataset.id}`, { method: 'DELETE' });
+        if (!r.ok) return alert('Verwijderen mislukt');
+        loadSponsors();
+      });
+    });
+  } catch (e) {
+    root.innerHTML = `<p class="empty-state">Kon sponsors niet laden.</p>`;
+  }
+}
+
+document.getElementById('sponsorForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('sponsorStatus');
+  status.textContent = 'Opslaan...';
+  try {
+    const res = await fetch('/api/sponsors', { method: 'POST', body: new FormData(e.target) });
+    if (!res.ok) throw new Error((await res.json()).error || res.status);
+    e.target.reset();
+    status.textContent = '✓ Sponsor toegevoegd';
+    setTimeout(() => status.textContent = '', 1500);
+    loadSponsors();
+  } catch (err) {
+    status.textContent = '✗ ' + err.message;
+  }
+});
+
+loadSponsors();
+</script>
+</body>
+</html>

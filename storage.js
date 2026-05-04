@@ -1,47 +1,33 @@
-const fs = require('fs');
-const path = require('path');
+const { supabase } = require('./db');
 
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!useBlob && !fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+const BUCKET = process.env.SUPABASE_BUCKET || 'wtc-photos';
 
 async function saveImage(file) {
   if (!file) return null;
   const safeBase = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
   const filename = `${Date.now()}-${safeBase}`;
 
-  if (useBlob) {
-    const { put } = require('@vercel/blob');
-    const blob = await put(filename, file.buffer, {
-      access: 'public',
-      contentType: file.mimetype
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filename, file.buffer, {
+      contentType: file.mimetype,
+      cacheControl: '3600',
+      upsert: false
     });
-    return blob.url;
-  }
+  if (error) throw new Error('Upload mislukt: ' + error.message);
 
-  fs.writeFileSync(path.join(UPLOAD_DIR, filename), file.buffer);
-  return `/uploads/${filename}`;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+  return data.publicUrl;
 }
 
-async function deleteImage(urlOrFile) {
-  if (!urlOrFile) return;
-
-  if (useBlob && urlOrFile.startsWith('http')) {
-    try {
-      const { del } = require('@vercel/blob');
-      await del(urlOrFile);
-    } catch (e) { /* ignore */ }
-    return;
-  }
-
-  if (urlOrFile.startsWith('/uploads/')) {
-    const p = path.join(__dirname, urlOrFile);
-    if (fs.existsSync(p)) fs.unlinkSync(p);
-  }
+async function deleteImage(url) {
+  if (!url) return;
+  // URL format: https://xxx.supabase.co/storage/v1/object/public/<bucket>/<filename>
+  const marker = `/${BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return;
+  const filename = url.substring(idx + marker.length);
+  await supabase.storage.from(BUCKET).remove([filename]);
 }
 
-function localUploadDir() {
-  return UPLOAD_DIR;
-}
-
-module.exports = { saveImage, deleteImage, localUploadDir, useBlob };
+module.exports = { saveImage, deleteImage };

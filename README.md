@@ -6,90 +6,77 @@ Volledige website met database voor ritten, sponsors, leden en kalender. Iederee
 
 - **Frontend**: vanilla HTML / CSS / JS (in `public/`)
 - **Backend**: Express ([app.js](app.js)), met serverless wrapper voor Vercel ([api/index.js](api/index.js))
-- **Database**: libSQL — lokaal als SQLite-bestand, op Vercel via [Turso](https://turso.tech) (free tier ruim voldoende)
-- **Foto's**: lokaal in `uploads/`, op Vercel via [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
+- **Database + foto-storage**: [Supabase](https://supabase.com) (gratis tier — Postgres + Storage in één)
 - **Charts**: Chart.js (CDN)
+
+## Eenmalige setup — Supabase (5 min)
+
+1. Maak gratis account op [supabase.com](https://supabase.com).
+2. **New Project** → kies een naam (bv. `wtc-platteband`) en region (West EU).
+3. Wacht tot het project klaar is (~1 min).
+4. Open **SQL Editor** → New query → kopieer de inhoud van [supabase-schema.sql](supabase-schema.sql) → **Run**.
+   Dit maakt de 4 tabellen en zet RLS uit.
+5. Open **Storage** → **New bucket** → naam `wtc-photos`, **Public** aanvinken → **Create**.
+6. Open **Settings → API** en kopieer:
+   - **Project URL** (`https://xxxxx.supabase.co`)
+   - **service_role key** (onder "Project API keys" — let op: dit is het *service_role* secret, niet de anon key. Houd hem geheim — server-side enkel.)
 
 ## Lokaal draaien
 
 ```sh
 npm install
+cp .env.example .env
+# vul SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY in .env
 npm start
 ```
 
 → http://localhost:3000
 
-Lokaal slaat de DB op in `wtc.db` en foto's in `uploads/` — beide staan in `.gitignore`.
-
 ## Content beheren
 
-Op elke relevante pagina staat bovenaan een formulier om iets toe te voegen:
+Op elke pagina staat bovenaan een formulier:
 
-- **/ritten.html** — ritten toevoegen via de gele **+**-knop rechtsonder (op elke pagina)
+- **/ritten.html** — gele **+**-knop rechtsonder (op elke pagina)
 - **/sponsors.html** — sponsor toevoegen (met logo)
 - **/leden.html** — lid toevoegen (met foto, bestuur ja/nee, categorie A/B/C)
 - **/kalender.html** — evenement of geplande rit toevoegen
 
-Verwijderen kan via de "Verwijderen"-knop op elk item.
+Verwijderen via de "Verwijderen"-knop op elk item.
 
 ## Deploy naar Vercel
 
-### 1. Externe diensten aanmaken (eenmalig)
+1. `npm i -g vercel` (eenmalig)
+2. `vercel` in de projectmap
+3. In **Vercel dashboard → Settings → Environment Variables** zet je:
 
-**a) Turso voor de database:**
-1. Maak account op [turso.tech](https://turso.tech)
-2. CLI installeren: `npm i -g @libsql/cli` (of via website)
-3. Database aanmaken:
-   ```sh
-   turso db create wtc-platteband
-   turso db show wtc-platteband --url
-   turso db tokens create wtc-platteband
-   ```
-4. Bewaar de URL (`libsql://...`) en de token.
+   | Var | Waarde |
+   |---|---|
+   | `SUPABASE_URL` | `https://xxxxx.supabase.co` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | de service_role key uit Supabase |
 
-**b) Vercel Blob voor foto's:**
-1. In je Vercel project: Storage → Create → Blob → Connect
-2. Vercel zet automatisch `BLOB_READ_WRITE_TOKEN` in de environment.
+4. `vercel --prod`
 
-### 2. Deploy
-
-```sh
-npm i -g vercel
-vercel
-```
-
-Bij eerste deploy: Vercel detecteert het project. In de Vercel-dashboard onder **Settings → Environment Variables** zet je:
-
-| Var | Waarde |
-|---|---|
-| `TURSO_DATABASE_URL` | `libsql://xxxxx.turso.io` |
-| `TURSO_AUTH_TOKEN` | het token van turso |
-
-`BLOB_READ_WRITE_TOKEN` zet Vercel zelf na "Connect Blob".
-
-Daarna: `vercel --prod`.
+Klaar — site is live, foto's en data staan in Supabase.
 
 ## Project structuur
 
 ```
 .
-├── app.js              # Express app (routes + middleware)
-├── server.js           # Lokaal entrypoint (luistert op poort 3000)
+├── app.js              # Express app (alle API routes)
+├── server.js           # Lokaal entrypoint (poort 3000)
 ├── api/
 │   └── index.js        # Vercel serverless entrypoint (wrapt app.js)
-├── db.js               # libSQL client + schema
-├── storage.js          # Foto-upload abstractie (lokaal vs Vercel Blob)
-├── public/             # Statische frontend (Vercel serveert dit direct)
+├── db.js               # Supabase client
+├── storage.js          # Foto-upload via Supabase Storage
+├── supabase-schema.sql # Run dit eenmaal in Supabase SQL Editor
+├── public/             # Frontend (Vercel serveert dit direct)
 │   ├── index.html
 │   ├── ritten.html, ritten.js
 │   ├── dashboard.html, dashboard.js
-│   ├── kalender.html
-│   ├── leden.html
-│   ├── sponsors.html
-│   ├── contact.html
+│   ├── kalender.html, leden.html, sponsors.html, contact.html
 │   ├── styles.css
-│   └── script.js              # Shared (FAB, mobile nav)
-├── vercel.json         # Vercel routing
+│   └── script.js       # Shared (FAB, mobile nav)
+├── vercel.json
 ├── package.json
 └── .env.example
 ```
@@ -112,6 +99,5 @@ Alle endpoints zijn open — geen authenticatie.
 
 ## Backup
 
-- **Lokaal:** kopie van `wtc.db` + `uploads/`
-- **Productie (Turso):** `turso db shell wtc-platteband ".dump" > backup.sql`
-- **Vercel Blob:** `vercel blob list`
+Via Supabase dashboard: **Database → Backups** (gratis tier: dagelijkse automatische backups, 7 dagen retentie).
+Of: SQL dump via **Database → Connection string** + `pg_dump`.

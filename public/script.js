@@ -1,4 +1,4 @@
-// Shared site script — mobile nav + floating quick-add button (admin-only)
+// Shared site script — mobile nav + floating quick-add button (open voor iedereen)
 
 document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
@@ -12,6 +12,8 @@ function initMobileNav() {
     toggle.addEventListener('click', () => nav.classList.toggle('open'));
   }
 }
+
+const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function initQuickAdd() {
   const fab = document.createElement('button');
@@ -55,8 +57,15 @@ function initQuickAdd() {
           </div>
         </div>
         <div class="form-field">
-          <label for="qaRiders">Wie reed mee? (komma-gescheiden)</label>
-          <input type="text" id="qaRiders" placeholder="Jan, Marc, Piet, Sofie" required>
+          <label>Wie reed mee? <span id="qaCounter" class="muted" style="font-weight:400">(0 geselecteerd)</span></label>
+          <input type="search" id="qaRiderSearch" placeholder="Filter leden..." style="margin-bottom:0.4rem">
+          <div id="qaRiderList" class="rider-picker">
+            <p class="muted" style="padding:0.5rem">Leden worden geladen…</p>
+          </div>
+          <div style="margin-top:0.4rem; display:flex; gap:0.4rem; flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm" id="qaSelectAll">Selecteer alles</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="qaSelectNone">Selecteer niets</button>
+          </div>
         </div>
         <div class="form-field">
           <label for="qaPhoto">Foto (optioneel)</label>
@@ -76,13 +85,59 @@ function initQuickAdd() {
   `;
   document.body.appendChild(modal);
 
-  const open = () => {
+  let allMembers = [];
+  const riderList = modal.querySelector('#qaRiderList');
+  const riderSearch = modal.querySelector('#qaRiderSearch');
+  const counter = modal.querySelector('#qaCounter');
+
+  const updateCounter = () => {
+    const n = riderList.querySelectorAll('input[type="checkbox"]:checked').length;
+    counter.textContent = `(${n} geselecteerd)`;
+  };
+
+  const renderMembers = (filter = '') => {
+    const f = filter.toLowerCase();
+    const filtered = allMembers.filter((m) => !f || m.name.toLowerCase().includes(f));
+    if (!filtered.length) {
+      riderList.innerHTML = `<p class="muted" style="padding:0.5rem">${allMembers.length === 0 ? 'Nog geen leden — voeg eerst leden toe op de <a href="leden.html">leden-pagina</a>.' : 'Geen leden gevonden.'}</p>`;
+      updateCounter();
+      return;
+    }
+    const checked = new Set(
+      Array.from(riderList.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value)
+    );
+    riderList.innerHTML = filtered.map((m) => `
+      <label class="rider-pick">
+        <input type="checkbox" value="${m.id}"${checked.has(String(m.id)) ? ' checked' : ''}>
+        <span>${escHtml(m.name)}${m.category ? `<span class="muted"> · ${escHtml(m.category)}</span>` : ''}</span>
+      </label>
+    `).join('');
+    riderList.querySelectorAll('input').forEach(c => c.addEventListener('change', updateCounter));
+    updateCounter();
+  };
+
+  riderSearch.addEventListener('input', (e) => renderMembers(e.target.value));
+  modal.querySelector('#qaSelectAll').addEventListener('click', () => {
+    riderList.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = true);
+    updateCounter();
+  });
+  modal.querySelector('#qaSelectNone').addEventListener('click', () => {
+    riderList.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+    updateCounter();
+  });
+
+  const open = async () => {
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
     if (!document.getElementById('qaDate').value) {
       document.getElementById('qaDate').valueAsDate = new Date();
     }
     setTimeout(() => document.getElementById('qaTitleInput').focus(), 100);
+    try {
+      const res = await fetch('/api/members');
+      allMembers = (await res.json()).sort((a, b) => a.name.localeCompare(b.name));
+    } catch { allMembers = []; }
+    renderMembers(riderSearch.value);
   };
   const close = () => {
     modal.classList.remove('open');
@@ -98,14 +153,18 @@ function initQuickAdd() {
   document.getElementById('quickAddForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const status = document.getElementById('qaStatus');
+    const memberIds = Array.from(riderList.querySelectorAll('input[type="checkbox"]:checked')).map(c => Number(c.value));
+    if (!memberIds.length) {
+      status.textContent = '✗ Selecteer minstens één renner';
+      return;
+    }
     const fd = new FormData();
     fd.append('date', document.getElementById('qaDate').value);
     fd.append('title', document.getElementById('qaTitleInput').value.trim());
     fd.append('km', document.getElementById('qaKm').value);
     fd.append('time', document.getElementById('qaTime').value.trim());
     fd.append('cafe', document.getElementById('qaCafe').value);
-    const ridersArr = document.getElementById('qaRiders').value.split(',').map(s => s.trim()).filter(Boolean);
-    fd.append('riders', JSON.stringify(ridersArr));
+    fd.append('member_ids', JSON.stringify(memberIds));
     fd.append('notes', document.getElementById('qaNotes').value.trim());
     const photo = document.getElementById('qaPhoto');
     if (photo && photo.files[0]) fd.append('photo', photo.files[0]);
@@ -118,6 +177,8 @@ function initQuickAdd() {
       }
       status.textContent = '✓ Rit opgeslagen!';
       e.target.reset();
+      riderList.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+      updateCounter();
       setTimeout(() => {
         close();
         status.textContent = '';

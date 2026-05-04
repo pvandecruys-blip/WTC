@@ -3,30 +3,6 @@
 
 -- ===== Tabellen =====
 
-CREATE TABLE IF NOT EXISTS rides (
-  id          BIGSERIAL PRIMARY KEY,
-  date        DATE NOT NULL,
-  title       TEXT NOT NULL,
-  km          REAL NOT NULL,
-  time        TEXT NOT NULL,
-  cafe        REAL NOT NULL,
-  riders      JSONB NOT NULL DEFAULT '[]'::jsonb,
-  notes       TEXT DEFAULT '',
-  photo       TEXT,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS sponsors (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  tier        TEXT NOT NULL DEFAULT 'silver',
-  description TEXT DEFAULT '',
-  url         TEXT DEFAULT '',
-  logo        TEXT,
-  sort_order  INTEGER DEFAULT 0,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS members (
   id          BIGSERIAL PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -35,6 +11,39 @@ CREATE TABLE IF NOT EXISTS members (
   bio         TEXT DEFAULT '',
   photo       TEXT,
   is_board    BOOLEAN DEFAULT false,
+  sort_order  INTEGER DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS rides (
+  id          BIGSERIAL PRIMARY KEY,
+  date        DATE NOT NULL,
+  title       TEXT NOT NULL,
+  km          REAL NOT NULL,
+  time        TEXT NOT NULL,
+  cafe        REAL NOT NULL,
+  notes       TEXT DEFAULT '',
+  photo       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Junction table: welke leden reden mee per rit
+CREATE TABLE IF NOT EXISTS ride_members (
+  ride_id    BIGINT NOT NULL REFERENCES rides(id)   ON DELETE CASCADE,
+  member_id  BIGINT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  PRIMARY KEY (ride_id, member_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ride_members_ride   ON ride_members(ride_id);
+CREATE INDEX IF NOT EXISTS idx_ride_members_member ON ride_members(member_id);
+
+CREATE TABLE IF NOT EXISTS sponsors (
+  id          BIGSERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  tier        TEXT NOT NULL DEFAULT 'silver',
+  description TEXT DEFAULT '',
+  url         TEXT DEFAULT '',
+  logo        TEXT,
   sort_order  INTEGER DEFAULT 0,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
@@ -52,13 +61,20 @@ CREATE TABLE IF NOT EXISTS events (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ===== Migratie van oude `riders` JSONB kolom (indien aanwezig) =====
+-- Als je de oude versie van het schema al gerund hebt, draai dit eenmalig om de
+-- oude `riders` JSONB kolom op te ruimen. Bestaande riders-data gaat verloren —
+-- voeg leden opnieuw toe via de leden-pagina en koppel ze opnieuw aan ritten.
+ALTER TABLE rides DROP COLUMN IF EXISTS riders;
+
 -- ===== RLS uitschakelen =====
 -- We gebruiken de service_role key vanuit de server (die bypasst RLS sowieso),
 -- maar voor de zekerheid zetten we RLS expliciet uit op deze tabellen.
-ALTER TABLE rides    DISABLE ROW LEVEL SECURITY;
-ALTER TABLE sponsors DISABLE ROW LEVEL SECURITY;
-ALTER TABLE members  DISABLE ROW LEVEL SECURITY;
-ALTER TABLE events   DISABLE ROW LEVEL SECURITY;
+ALTER TABLE rides         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE ride_members  DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sponsors      DISABLE ROW LEVEL SECURITY;
+ALTER TABLE members       DISABLE ROW LEVEL SECURITY;
+ALTER TABLE events        DISABLE ROW LEVEL SECURITY;
 
 -- ===== Storage bucket =====
 -- Maak een PUBLIC bucket "wtc-photos" aan in: Dashboard → Storage → New bucket

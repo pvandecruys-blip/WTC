@@ -10,8 +10,18 @@ if (!url || !serviceKey) {
   );
 }
 
+// Hard timeout op Supabase calls zodat een hangende fetch niet de function laat
+// timeouten (Vercel cap = 300s, dat willen we vermijden — liever fast-fail).
+const fetchWithTimeout = (input, init = {}) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  return fetch(input, { ...init, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+};
+
 const supabase = createClient(url, serviceKey, {
-  auth: { persistSession: false }
+  auth: { persistSession: false, autoRefreshToken: false },
+  global: { fetch: fetchWithTimeout }
 });
 
 module.exports = { supabase };

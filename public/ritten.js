@@ -70,7 +70,7 @@ function renderList() {
     if (!searchTerm) return true;
     const t = searchTerm.toLowerCase();
     return r.title.toLowerCase().includes(t)
-      || r.riders.some((rd) => rd.toLowerCase().includes(t))
+      || r.riders.some((rd) => rd.name.toLowerCase().includes(t))
       || (r.notes || '').toLowerCase().includes(t);
   });
 
@@ -100,7 +100,7 @@ function renderList() {
             <span>👥 ${r.riders.length} renners</span>
           </div>
           <div class="ride-card-riders">
-            ${r.riders.map((rd) => `<span class="rider-pill">${escapeHtml(rd)}</span>`).join('')}
+            ${r.riders.map((rd) => `<span class="rider-pill">${escapeHtml(rd.name)}</span>`).join('')}
           </div>
           ${r.notes ? `<p class="ride-card-notes">"${escapeHtml(r.notes)}"</p>` : ''}
         </div>

@@ -24,31 +24,62 @@ const fail = (res, error) => res.status(500).json({ error: error.message || Stri
 // ============================================================
 // RIDES
 // ============================================================
+const flattenRide = (r) => ({
+  id: r.id,
+  date: r.date,
+  title: r.title,
+  km: r.km,
+  time: r.time,
+  cafe: r.cafe,
+  notes: r.notes || '',
+  photo: r.photo || null,
+  riders: (r.ride_members || []).map((rm) => rm.members).filter(Boolean)
+});
+
 app.get('/api/rides', async (req, res) => {
   const { data, error } = await supabase
-    .from('rides').select('*')
+    .from('rides')
+    .select('*, ride_members ( members ( id, name ) )')
     .order('date', { ascending: false }).order('id', { ascending: false });
   if (error) return fail(res, error);
-  res.json(data);
+  res.json(data.map(flattenRide));
 });
 
 app.post('/api/rides', upload.single('photo'), async (req, res) => {
   try {
     const { date, title, km, time, cafe, notes } = req.body;
-    let { riders } = req.body;
-    if (typeof riders === 'string') {
-      try { riders = JSON.parse(riders); } catch { riders = riders.split(',').map(s => s.trim()).filter(Boolean); }
+    let memberIds = req.body.member_ids;
+    if (typeof memberIds === 'string') {
+      try { memberIds = JSON.parse(memberIds); } catch { memberIds = []; }
     }
-    if (!date || !title || km == null || !time || cafe == null || !Array.isArray(riders)) {
+    if (!Array.isArray(memberIds)) memberIds = [];
+    memberIds = memberIds.map(Number).filter((n) => Number.isFinite(n));
+
+    if (!date || !title || km == null || !time || cafe == null) {
       return res.status(400).json({ error: 'Verplichte velden ontbreken' });
     }
+    if (!memberIds.length) {
+      return res.status(400).json({ error: 'Selecteer minstens één renner' });
+    }
+
     const photoUrl = await storage.saveImage(req.file);
-    const { data, error } = await supabase.from('rides').insert({
+    const { data: ride, error: insErr } = await supabase.from('rides').insert({
       date, title, km: Number(km), time, cafe: Number(cafe),
-      riders, notes: notes || '', photo: photoUrl
+      notes: notes || '', photo: photoUrl
     }).select().single();
-    if (error) throw error;
-    res.status(201).json(data);
+    if (insErr) throw insErr;
+
+    const links = memberIds.map((member_id) => ({ ride_id: ride.id, member_id }));
+    const { error: linkErr } = await supabase.from('ride_members').insert(links);
+    if (linkErr) {
+      await supabase.from('rides').delete().eq('id', ride.id);
+      throw linkErr;
+    }
+
+    const { data: full } = await supabase
+      .from('rides').select('*, ride_members ( members ( id, name ) )')
+      .eq('id', ride.id).single();
+    res.status(201).json(flattenRide(full));
   } catch (err) { fail(res, err); }
 });
 
@@ -57,10 +88,26 @@ app.delete('/api/rides/:id', async (req, res) => {
     const id = Number(req.params.id);
     const { data: row } = await supabase.from('rides').select('photo').eq('id', id).single();
     if (!row) return res.status(404).json({ error: 'Niet gevonden' });
+    // ride_members rows worden auto-deleted door ON DELETE CASCADE
     const { error } = await supabase.from('rides').delete().eq('id', id);
     if (error) throw error;
     await storage.deleteImage(row.photo);
     res.json({ ok: true });
+  } catch (err) { fail(res, err); }
+});
+
+// Ritten waarin lid X meereed
+app.get('/api/members/:id/rides', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { data, error } = await supabase
+      .from('ride_members')
+      .select('rides ( *, ride_members ( members ( id, name ) ) )')
+      .eq('member_id', id);
+    if (error) throw error;
+    const rides = data.map((r) => r.rides).filter(Boolean).map(flattenRide)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    res.json(rides);
   } catch (err) { fail(res, err); }
 });
 
@@ -189,8 +236,10 @@ function parseTimeToHours(t) {
 }
 
 app.get('/api/stats', async (req, res) => {
-  const { data: rides, error } = await supabase.from('rides').select('*');
+  const { data: raw, error } = await supabase
+    .from('rides').select('*, ride_members ( members ( id, name ) )');
   if (error) return fail(res, error);
+  const rides = (raw || []).map(flattenRide);
 
   if (!rides.length) {
     return res.json({
@@ -208,12 +257,12 @@ app.get('/api/stats', async (req, res) => {
   rides.forEach((r) => {
     const hours = parseTimeToHours(r.time);
     const speed = hours > 0 ? r.km / hours : 0;
-    const groupSize = (r.riders || []).length || 1;
-    (r.riders || []).forEach((name) => {
-      const k = String(name).trim();
-      if (!k) return;
-      if (!riderMap.has(k)) riderMap.set(k, { name: k, rides: 0, km: 0, hours: 0, cafeShare: 0, speedSum: 0 });
-      const e = riderMap.get(k);
+    const groupSize = r.riders.length || 1;
+    r.riders.forEach((m) => {
+      if (!riderMap.has(m.id)) {
+        riderMap.set(m.id, { id: m.id, name: m.name, rides: 0, km: 0, hours: 0, cafeShare: 0, speedSum: 0 });
+      }
+      const e = riderMap.get(m.id);
       e.rides += 1;
       e.km += r.km;
       e.hours += hours;
@@ -224,6 +273,7 @@ app.get('/api/stats', async (req, res) => {
 
   const byRider = Array.from(riderMap.values())
     .map((e) => ({
+      id: e.id,
       name: e.name,
       rides: e.rides,
       km: +e.km.toFixed(1),
@@ -245,12 +295,12 @@ app.get('/api/stats', async (req, res) => {
     .map((r) => {
       const w = [], wo = [];
       rides.forEach((ride, idx) => {
-        if ((ride.riders || []).includes(r.name)) w.push(allSpeeds[idx]); else wo.push(allSpeeds[idx]);
+        if (ride.riders.some((m) => m.id === r.id)) w.push(allSpeeds[idx]); else wo.push(allSpeeds[idx]);
       });
       const avgWith = w.length ? w.reduce((a, b) => a + b, 0) / w.length : 0;
       const avgWithout = wo.length ? wo.reduce((a, b) => a + b, 0) / wo.length : null;
       return {
-        name: r.name, rides: r.rides,
+        id: r.id, name: r.name, rides: r.rides,
         avgWith: +avgWith.toFixed(2),
         avgWithout: avgWithout != null ? +avgWithout.toFixed(2) : null,
         delta: avgWithout != null ? +(avgWith - avgWithout).toFixed(2) : null

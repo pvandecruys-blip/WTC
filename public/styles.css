@@ -1120,6 +1120,37 @@ p { margin: 0 0 1em; }
   color: var(--text);
 }
 
+/* Rider multi-select picker */
+.rider-picker {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.2rem;
+}
+.rider-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.92rem;
+  transition: background 0.1s;
+}
+.rider-pick:hover { background: var(--bg-alt); }
+.rider-pick input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+.rider-pick .muted { color: var(--text-dim); font-size: 0.85em; }
+.muted { color: var(--text-dim); }
+
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
   .nav-toggle { display: block; }

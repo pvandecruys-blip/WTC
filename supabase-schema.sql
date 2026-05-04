@@ -10,10 +10,12 @@ CREATE TABLE IF NOT EXISTS members (
   category    TEXT DEFAULT '',
   bio         TEXT DEFAULT '',
   photo       TEXT,
-  is_board    BOOLEAN DEFAULT false,
   sort_order  INTEGER DEFAULT 0,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Drop oude is_board kolom (indien aanwezig uit vorig schema)
+ALTER TABLE members DROP COLUMN IF EXISTS is_board;
 
 CREATE TABLE IF NOT EXISTS rides (
   id          BIGSERIAL PRIMARY KEY,

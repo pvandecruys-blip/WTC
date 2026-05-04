@@ -191,7 +191,6 @@ app.delete('/api/sponsors/:id', async (req, res) => {
 // ============================================================
 app.get('/api/members', async (req, res) => {
   const { data, error } = await getSupabase().from('members').select('*')
-    .order('is_board', { ascending: false })
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
   if (error) return fail(res, error);
@@ -200,13 +199,12 @@ app.get('/api/members', async (req, res) => {
 
 app.post('/api/members', upload.single('photo'), async (req, res) => {
   try {
-    const { name, role, category, bio, is_board, sort_order } = req.body;
+    const { name, role, category, bio, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: 'Naam vereist' });
     const photoUrl = await storage.saveImage(req.file);
     const { data, error } = await getSupabase().from('members').insert({
       name, role: role || '', category: category || '',
       bio: bio || '', photo: photoUrl,
-      is_board: is_board === 'true' || is_board === true,
       sort_order: Number(sort_order) || 0
     }).select().single();
     if (error) throw error;

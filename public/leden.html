@@ -65,13 +65,6 @@
               <option value="C">C — Recreatief</option>
             </select>
           </div>
-          <div class="form-field">
-            <label>Bestuurslid?</label>
-            <select name="is_board">
-              <option value="false">Nee</option>
-              <option value="true">Ja</option>
-            </select>
-          </div>
         </div>
         <div class="form-field">
           <label>Bio</label>
@@ -137,34 +130,28 @@ async function loadMembers() {
       root.innerHTML = `<p class="empty-state">Nog geen leden. Voeg er eentje toe via het formulier hierboven.</p>`;
       return;
     }
-    const board = members.filter(m => m.is_board);
-    const others = members.filter(m => !m.is_board);
     const card = (m) => {
       const initials = m.name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
       return `
-        <div class="member-card${m.is_board ? ' board' : ''}">
+        <div class="member-card">
           ${m.photo
             ? `<img src="${esc(m.photo)}" alt="${esc(m.name)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 1rem;display:block;">`
             : `<div class="member-avatar">${esc(initials)}</div>`}
           <h3>${esc(m.name)}</h3>
           ${m.role ? `<p class="member-role">${esc(m.role)}</p>` : ''}
           ${m.bio ? `<p>${esc(m.bio)}</p>` : ''}
-          ${m.category && !m.is_board ? `<p class="muted" style="font-size:.85rem">Categorie ${esc(m.category)}</p>` : ''}
+          ${m.category ? `<p class="muted" style="font-size:.85rem">Categorie ${esc(m.category)}</p>` : ''}
           <div style="margin-top:0.8rem"><button class="delete-ride" data-id="${m.id}">Verwijderen</button></div>
         </div>
       `;
     };
+    const cats = {};
+    members.forEach(m => (cats[m.category || '—'] = cats[m.category || '—'] || []).push(m));
+    const catKeys = Object.keys(cats).sort();
     let html = '';
-    if (board.length) html += `<h2>Bestuur</h2><div class="members-grid">${board.map(card).join('')}</div>`;
-    if (others.length) {
-      const cats = {};
-      others.forEach(m => (cats[m.category || '—'] = cats[m.category || '—'] || []).push(m));
-      const catKeys = Object.keys(cats).sort();
-      html += `<h2 class="mt-large">Renners</h2>`;
-      for (const c of catKeys) {
-        if (catKeys.length > 1) html += `<h3 style="margin-top:1.5rem">Categorie ${esc(c)}</h3>`;
-        html += `<div class="members-grid">${cats[c].map(card).join('')}</div>`;
-      }
+    for (const c of catKeys) {
+      if (catKeys.length > 1) html += `<h2${html ? ' class="mt-large"' : ''}>Categorie ${esc(c)}</h2>`;
+      html += `<div class="members-grid">${cats[c].map(card).join('')}</div>`;
     }
     root.innerHTML = html;
     root.querySelectorAll('button[data-id]').forEach(btn => {

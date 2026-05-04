@@ -832,9 +832,6 @@ p { margin: 0 0 1em; }
   border: 1px solid var(--border);
   text-align: center;
 }
-.member-card.board {
-  border-color: var(--primary);
-}
 .member-avatar {
   width: 70px;
   height: 70px;

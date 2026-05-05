@@ -186,6 +186,10 @@ function ensureEditMemberModal() {
           <input type="file" id="emPhoto" accept="image/*">
         </div>
         <div class="form-field">
+          <label>Rol (bv. Voorzitter, Materiaalman, ...)</label>
+          <input type="text" id="emRole">
+        </div>
+        <div class="form-field">
           <label>Beschrijving / bio</label>
           <textarea id="emBio" rows="3"></textarea>
         </div>
@@ -220,6 +224,7 @@ function ensureEditMemberModal() {
     const fd = new FormData();
     fd.append('bio', document.getElementById('emBio').value.trim());
     fd.append('category', document.getElementById('emCategory').value);
+    fd.append('role', document.getElementById('emRole').value.trim());
     const photo = document.getElementById('emPhoto');
     if (photo.files[0]) fd.append('photo', photo.files[0]);
     status.textContent = 'Opslaan...';
@@ -238,6 +243,7 @@ function openEditMemberModal(m) {
   ensureEditMemberModal();
   document.getElementById('emId').value = m.id;
   document.getElementById('emName').textContent = m.name;
+  document.getElementById('emRole').value = m.role || '';
   document.getElementById('emBio').value = m.bio || '';
   document.getElementById('emCategory').value = m.category || '';
   document.getElementById('emPhoto').value = '';

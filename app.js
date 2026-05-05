@@ -265,11 +265,12 @@ app.post('/api/members', upload.single('photo'), async (req, res) => {
 app.patch('/api/members/:id', upload.single('photo'), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { bio, category } = req.body;
+    const { bio, category, role } = req.body;
 
     const update = {};
     if (bio !== undefined) update.bio = bio;
     if (category !== undefined) update.category = category;
+    if (role !== undefined) update.role = role;
 
     if (req.file) {
       const { data: old } = await getSupabase().from('members').select('photo').eq('id', id).single();

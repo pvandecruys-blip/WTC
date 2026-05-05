@@ -141,6 +141,7 @@ async function loadMembers() {
           ${m.role ? `<p class="member-role">${esc(m.role)}</p>` : ''}
           ${m.bio ? `<p>${esc(m.bio)}</p>` : ''}
           ${m.category ? `<p class="muted" style="font-size:.85rem">Categorie ${esc(m.category)}</p>` : ''}
+          <div style="margin-top:0.8rem"><button class="btn btn-ghost btn-sm edit-member" data-id="${m.id}">Profiel aanpassen</button></div>
         </div>
       `;
     };
@@ -153,9 +154,96 @@ async function loadMembers() {
       html += `<div class="members-grid">${cats[c].map(card).join('')}</div>`;
     }
     root.innerHTML = html;
+    root.querySelectorAll('.edit-member').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const m = members.find((x) => x.id === Number(btn.dataset.id));
+        if (m) openEditMemberModal(m);
+      });
+    });
   } catch (e) {
     root.innerHTML = `<p class="empty-state">Kon leden niet laden.</p>`;
   }
+}
+
+// ===== Edit member modal =====
+let editMemberModal = null;
+function ensureEditMemberModal() {
+  if (editMemberModal) return;
+  editMemberModal = document.createElement('div');
+  editMemberModal.className = 'modal-backdrop';
+  editMemberModal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Profiel aanpassen</h2>
+        <button class="modal-close" aria-label="Sluiten">&times;</button>
+      </div>
+      <form id="editMemberForm" class="ride-form" enctype="multipart/form-data">
+        <input type="hidden" id="emId">
+        <p class="muted" id="emName" style="margin-top:0"></p>
+        <p class="muted" style="font-size:.85rem">Naam kan enkel via de admin in Supabase aangepast worden.</p>
+        <div class="form-field">
+          <label>Foto vervangen (optioneel)</label>
+          <input type="file" id="emPhoto" accept="image/*">
+        </div>
+        <div class="form-field">
+          <label>Beschrijving / bio</label>
+          <textarea id="emBio" rows="3"></textarea>
+        </div>
+        <div class="form-field">
+          <label>Categorie</label>
+          <select id="emCategory">
+            <option value="">—</option>
+            <option value="A">A — Snelle groep</option>
+            <option value="B">B — Sportief</option>
+            <option value="C">C — Recreatief</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Opslaan</button>
+          <button type="button" class="btn btn-ghost modal-cancel">Annuleer</button>
+        </div>
+        <p id="emStatus" class="form-status"></p>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(editMemberModal);
+  const close = () => { editMemberModal.classList.remove('open'); document.body.style.overflow = ''; };
+  editMemberModal.querySelector('.modal-close').addEventListener('click', close);
+  editMemberModal.querySelector('.modal-cancel').addEventListener('click', close);
+  editMemberModal.addEventListener('click', (e) => { if (e.target === editMemberModal) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && editMemberModal.classList.contains('open')) close(); });
+
+  document.getElementById('editMemberForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('emId').value;
+    const status = document.getElementById('emStatus');
+    const fd = new FormData();
+    fd.append('bio', document.getElementById('emBio').value.trim());
+    fd.append('category', document.getElementById('emCategory').value);
+    const photo = document.getElementById('emPhoto');
+    if (photo.files[0]) fd.append('photo', photo.files[0]);
+    status.textContent = 'Opslaan...';
+    try {
+      const res = await fetch(`/api/members/${id}`, { method: 'PATCH', body: fd });
+      if (!res.ok) throw new Error((await res.json()).error || res.status);
+      status.textContent = '✓ Opgeslagen';
+      setTimeout(() => { close(); loadMembers(); }, 600);
+    } catch (err) {
+      status.textContent = '✗ ' + err.message;
+    }
+  });
+}
+
+function openEditMemberModal(m) {
+  ensureEditMemberModal();
+  document.getElementById('emId').value = m.id;
+  document.getElementById('emName').textContent = m.name;
+  document.getElementById('emBio').value = m.bio || '';
+  document.getElementById('emCategory').value = m.category || '';
+  document.getElementById('emPhoto').value = '';
+  document.getElementById('emStatus').textContent = '';
+  editMemberModal.classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 document.getElementById('memberForm').addEventListener('submit', async (e) => {

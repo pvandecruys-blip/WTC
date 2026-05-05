@@ -135,6 +135,51 @@ app.delete('/api/rides/:id', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
+// PATCH een rit — alle velden zijn optioneel, alleen wat er meekomt wordt geupdate
+app.patch('/api/rides/:id', upload.single('photo'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { date, title, km, time, cafe, notes } = req.body;
+
+    const update = {};
+    if (date) update.date = date;
+    if (title) update.title = title;
+    if (km != null && km !== '') update.km = Number(km);
+    if (time) update.time = time;
+    if (cafe != null && cafe !== '') update.cafe = Number(cafe);
+    if (notes !== undefined) update.notes = notes;
+
+    if (req.file) {
+      const { data: old } = await getSupabase().from('rides').select('photo').eq('id', id).single();
+      update.photo = await storage.saveImage(req.file);
+      if (old?.photo) await storage.deleteImage(old.photo);
+    }
+
+    if (Object.keys(update).length) {
+      const { error } = await getSupabase().from('rides').update(update).eq('id', id);
+      if (error) throw error;
+    }
+
+    let memberIds = req.body.member_ids;
+    if (typeof memberIds === 'string') {
+      try { memberIds = JSON.parse(memberIds); } catch { memberIds = null; }
+    }
+    if (Array.isArray(memberIds)) {
+      memberIds = memberIds.map(Number).filter((n) => Number.isFinite(n));
+      if (!memberIds.length) return res.status(400).json({ error: 'Selecteer minstens één renner' });
+      await getSupabase().from('ride_members').delete().eq('ride_id', id);
+      const links = memberIds.map((member_id) => ({ ride_id: id, member_id }));
+      const { error: linkErr } = await getSupabase().from('ride_members').insert(links);
+      if (linkErr) throw linkErr;
+    }
+
+    const { data: full } = await getSupabase().from('rides')
+      .select('*, ride_members ( members ( id, name ) )').eq('id', id).single();
+    if (!full) return res.status(404).json({ error: 'Niet gevonden' });
+    res.json(flattenRide(full));
+  } catch (err) { fail(res, err); }
+});
+
 // Ritten waarin lid X meereed
 app.get('/api/members/:id/rides', async (req, res) => {
   try {
@@ -214,6 +259,35 @@ app.post('/api/members', upload.single('photo'), async (req, res) => {
 
 // DELETE /api/members/:id is bewust uitgeschakeld — leden mogen alleen via
 // de Supabase dashboard verwijderd worden om accidentele schade te vermijden.
+
+// PATCH een lid — alleen photo, bio en category mogen aangepast worden.
+// Naam is bewust niet wijzigbaar.
+app.patch('/api/members/:id', upload.single('photo'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { bio, category } = req.body;
+
+    const update = {};
+    if (bio !== undefined) update.bio = bio;
+    if (category !== undefined) update.category = category;
+
+    if (req.file) {
+      const { data: old } = await getSupabase().from('members').select('photo').eq('id', id).single();
+      update.photo = await storage.saveImage(req.file);
+      if (old?.photo) await storage.deleteImage(old.photo);
+    }
+
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ error: 'Niets om aan te passen' });
+    }
+
+    const { data, error } = await getSupabase().from('members')
+      .update(update).eq('id', id).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Niet gevonden' });
+    res.json(data);
+  } catch (err) { fail(res, err); }
+});
 
 // ============================================================
 // EVENTS

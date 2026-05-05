@@ -73,7 +73,7 @@ Klaar — site is live, foto's en data staan in Supabase.
 │   ├── index.html
 │   ├── ritten.html, ritten.js
 │   ├── dashboard.html, dashboard.js
-│   ├── kalender.html, leden.html, sponsors.html, contact.html
+│   ├── kalender.html, leden.html, sponsors.html
 │   ├── styles.css
 │   └── script.js       # Shared (FAB, mobile nav)
 ├── vercel.json
